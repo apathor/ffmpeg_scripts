@@ -37,7 +37,7 @@ gifcut() {
 		;;
 	    d) # file camera device
 		dev="$OPTARG"
-		if ! [ -e "$dev"]; then
+		if ! [ -e "$dev" ]; then
 		    echo "Input device must exist!" >&2
 		    return 1
 		fi
@@ -105,11 +105,11 @@ gifcut() {
 	echo "Will not overwrite file: $out" >&2
 	return 2
     fi
-    # assemble avconv input segment
+    # assemble input segment
     local ia=""
     if [ -n "$cam" ]; then ia+=" -f video4linux2"; fi
     if [ -n "$stt" ]; then ia+=" -ss $stt"; fi
-    # assemble avconv output segment
+    # assemble output segment
     local oa="-f gif -vf format=rgb8,format=rgb24 -pix_fmt rgb24"
     if [ -n "$dur" ]; then oa+=" -t $dur"; fi
     if [ -n "$fps" ]; then oa+=" -r $fps"; fi
@@ -118,16 +118,17 @@ gifcut() {
     local cmd
     if type gifsicle &>/dev/null; then
 	# optimize if possible
-	cmd="avconv $ia -i $inp $oa - 2>&- | gifsicle -O3 -d3 > $out 2>&-"
+	cmd="avconv $ia -i \"$inp\" $oa - | gifsicle -O3 -d3 > $out"
     else
 	# default render
-	cmd="avconv $ia -i $inp $oa $out 2>&-"
+	cmd="avconv $ia -i $inp $oa $out"
     fi
     # run it!
-    eval "$cmd"
+    local run
+    run=$(eval "$cmd" 2>&1)
     # cleanup and debug if conversion failed or output file is missing
     if [ $? -ne 0 ]; then
-	echo -e "Something went wrong!\n$run\n" >&2
+	echo -e "Something went wrong!\n> $cmd\n$run\n" >&2
 	if [ -e "$out" ]; then rm "$out"; fi
 	return 3
     fi
