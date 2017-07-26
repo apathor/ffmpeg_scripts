@@ -1,0 +1,139 @@
+#!/bin/bash
+###gifcut - Extract a GIF from a video using avconv.
+###
+###USAGE: gifcut [OPTIONS] INFILE OUTFILE
+###OPTIONS:
+### -h		: Show this helpful text.
+### -b START	: Integer seconds offset from the start of the input.
+### -c		: Take input from a camera device instead of video file.
+### -d DEVICE	: Set V4L device from which to capture video.
+### -r FPS	: Integer rate of output GIF in frames per second.
+### -s SCALE	: Integer WxH scale to resize frames in output GIF.
+### -t DURATION : Integer seconds selection of input file.
+###
+### gifcut © Mike Lalumiere 2017
+
+gifcut() {
+    # check requirements
+    if ! type avconv grep sed &>/dev/null; then
+	echo "${BASH_SOURCE[0]} requires avconv and GNU coreutils!" >&2
+	return 255
+    fi
+    # define usage text
+    local use="$(grep '^###' "${BASH_SOURCE[0]}" | sed 's/^###//')"
+    # accept some options
+    local cam dev dur stt fps sca
+    while getopts "b:cd:hr:s:t:" opt; do
+	case "$opt" in
+	    b) # begin seconds into input
+		stt="$OPTARG"
+		if ! [[ "$stt" =~ ^[0-9]+$ ]]; then
+		    echo "Start time must be a number!" >&2
+		    return 1
+		fi
+		;;
+	    c) # enable camera mode
+		cam=1
+		;;
+	    d) # file camera device
+		dev="$OPTARG"
+		if ! [ -e "$dev"]; then
+		    echo "Input device must exist!" >&2
+		    return 1
+		fi
+		;;
+	    r) # integer seconds frame rate of output GIF
+		fps="$OPTARG"
+		if ! [[ "$fps" =~ ^[0-9]+$ ]]; then
+		    echo "Frame rate must be a number!" >&2
+		    return 1
+		fi
+		;;
+	    s) # WxH integer scale for output GIF
+		sca="$OPTARG"
+		if ! [[ "$sca" =~ ^[0-9]+x[0-9]+$ ]]; then
+		    echo "Scale must be in WxH format!" >&2
+		    return 1
+		fi
+		;;
+	    t) # integer seconds of input video
+		dur="$OPTARG"
+		if ! [[ "$dur" =~ ^[0-9]+$ ]]; then
+		    echo "Duration must be a number!" >&2
+		    return 1
+		fi
+		;;
+	    h) # help!
+		echo "$use"
+		return 1
+		;;
+	esac
+    done
+    shift $((OPTIND - 1))
+    # accept arguments
+    local inp out
+    ## input file is first argument or camera device
+    if [ -z "$cam" ]; then
+	inp="$1"
+	shift
+    else
+	inp="${dev:-/dev/video0}"
+    fi
+    ## input argument is required
+    if [ -z "$inp" ]; then
+	echo "$use" >&2
+	return 1
+    fi
+    ## input file must be a real file
+    if ! [ -e "$inp" ] || [ -d "$inp" ]; then
+	echo "Input file does not exist or is a directory: $inp" >&2
+	return 2
+    fi
+    ## input file must be readable
+    if ! [ -r "$inp" ]; then
+	echo "Input file is not readable: $inp" >&2
+	return 2
+    fi
+    # accept output file argument
+    if [ -z "$1" ]; then
+	echo "$use" >&2
+	return 1
+    fi
+    out="${1%.gif}.gif"
+    ## output file must not exist already
+    if [ -e "$out" ]; then
+	echo "Will not overwrite file: $out" >&2
+	return 2
+    fi
+    # assemble avconv input segment
+    local ia=""
+    if [ -n "$cam" ]; then ia+=" -f video4linux2"; fi
+    if [ -n "$stt" ]; then ia+=" -ss $stt"; fi
+    # assemble avconv output segment
+    local oa="-f gif -vf format=rgb8,format=rgb24 -pix_fmt rgb24"
+    if [ -n "$dur" ]; then oa+=" -t $dur"; fi
+    if [ -n "$fps" ]; then oa+=" -r $fps"; fi
+    if [ -n "$sca" ]; then oa+=" -s $sca"; fi
+    # assemble final command
+    local cmd
+    if type gifsicle &>/dev/null; then
+	# optimize if possible
+	cmd="avconv $ia -i $inp $oa - 2>&- | gifsicle -O3 -d3 > $out 2>&-"
+    else
+	# default render
+	cmd="avconv $ia -i $inp $oa $out 2>&-"
+    fi
+    # run it!
+    eval "$cmd"
+    # cleanup and debug if conversion failed or output file is missing
+    if [ $? -ne 0 ]; then
+	echo -e "Something went wrong!\n$run\n" >&2
+	if [ -e "$out" ]; then rm "$out"; fi
+	return 3
+    fi
+    # success! write the output file
+    echo "$out"
+}
+
+# run it unless sourced
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then gifcut "$@"; fi

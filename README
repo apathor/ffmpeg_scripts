@@ -1,0 +1,17 @@
+# avconv_scripts
+Yo! This repository contains some bash scripts that use avconv.
+
+## transcode
+Recursively convert all media files in one directory to the given format.
+> transcode FORMAT INDIR OUTDIR
+
+## gifcut
+Cut GIFs out of media files or from an input device.
+> gifcut [OPTIONS] INFILE OUTFILE
+
+# License
+GPLv3 (see LICENSE)
+
+# Links
+avconv -  https://libav.org
+GNU - https://www.gnu.org/software/
