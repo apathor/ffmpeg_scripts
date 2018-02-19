@@ -1,0 +1,108 @@
+#!/bin/bash
+# tele © GPLv3 by Mike Lalumiere 2018
+# This file is licensed under the GPLv3. Please see LICENSE.
+# Requires avconv, avplay, and ssh. Assumes PulseAudio for mic input.
+tele() {
+    # usage string
+    read -r -d '' use <<EOF
+Usage: tele [OPTIONS] HOST
+Establish a bidirectional pipe of audio to HOST via SSH and libav tools.
+
+OPTIONS
+ -r      : Only setup remote-to-local audio stream.
+ -l      : Only setup local-to-remote audio stream.
+ -i FILE : An input file to be streamed to host.
+ -o FILE : An output file to which to write audio stream from host.
+
+tele © GPLv3 by Mike Lalumiere 2018
+EOF
+    # accept options
+    local out="" inp=""
+    local loc=0 rem=0
+    while getopts ":hi:lo:r" opt; do
+        case "$opt" in
+            i) inp="$OPTARG" ;; # input file
+            o) out="$OPTARG" ;; # output file
+            l) rem=1         ;; # local only
+            r) loc=1         ;; # remote only
+            h) # display help
+                echo "$use"
+                return 0
+                ;; 
+            \?) # unexpected option?
+                printf "Invalid option '-%s'.\n%s\n" "$OPTARG"  "$use" >&2
+                return 1
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+    # check options
+    if [ -n "$inp" ] && ! [ -f "$inp" ]; then
+        # if specified input file must exist
+        echo "Input file must exist!" >&2
+        return 1
+    fi
+    if [ -n "$inp" ] && ! [ -f "$inp" ]; then
+        # if specified output file must not exist
+        echo "Output file already exists!" >&2
+        return 1
+    fi
+    if [ "$rem" == "1" ] && [ "$loc" == "1" ]; then
+        # local and remote options are incompatible given together
+        echo "Remote and local playback disabled? Nothing to do." >&2
+        return 1
+    fi
+    # accept target host argument
+    local host="$1"
+    if [ -z "$host" ]; then
+        echo "Host argument required." >&2
+        return 1
+    fi
+    # test connection to the target host
+    if ! ssh "$host" ":"; then
+        echo "Could not connect to host '$host'." >&2
+        return 2
+    fi
+    # require libav tools here and on the target host
+    if ! type avconv avplay &>/dev/null; then
+        echo "Missing tools on local host - avconv and avplay required!" >&2
+        return 3
+    fi
+    if ! ssh "$host" 'bash -c "type avconv avplay"' &>/dev/null; then
+        echo "Missing tools on remote host - avconv and avplay required!" >&2
+        return 3
+    fi
+    # when signaled kill the whole process group
+    trap 'kill -INT -$$' SIGTERM EXIT
+    # local audio input to remote audio output
+    if [ "$loc" == "0" ]; then
+        {
+            if [ -n "$inp" ]; then
+                avconv -v quiet -i "$inp" -f wav -
+            else
+                avconv -v quiet -f pulse -i default -f wav -
+            fi
+        } | {
+            ssh "$host" -- \
+                DISPLAY=:0 avplay -nodisp -v quiet -f wav - 1>/dev/null
+        } &
+        printf "Sending audio stream to %s\n" "$host" >&2
+    fi
+    # remote audio input to local audio output
+    if [ "$rem" == "0" ]; then
+        {
+            ssh "$host" -- avconv -v quiet -f pulse -i default -f wav -
+        } | {
+            if [ -n "$out" ]; then
+                avconv -v quiet -f wav -i - "$out"
+            else
+                DISPLAY=:0 avplay -nodisp -v quiet -f wav - 1>/dev/null
+            fi
+        } &
+        printf "Receiving audio stream from %s\n" "$host" >&2
+    fi
+    # wait on child processes
+    wait
+}
+# run it unless sourced
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then tele "$@"; fi

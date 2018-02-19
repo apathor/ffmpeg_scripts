@@ -5,77 +5,77 @@
 
 function transcode {
     # usage string
-    local usage="USAGE: $(basename $0) FORMAT SOURCE_DIR TARGET_DIR\n"    
+    local usage="USAGE: $(basename $0) FORMAT SOURCE_DIR TARGET_DIR\n"
     # requirements
-    type avconv &>/dev/null || { printf "No avconv available!\n" >&2; exit 1; }
-    type find   &>/dev/null || { printf "No find available?\n" >&2; exit 1; }
-    # audio format argument 
+    if ! type avconv &>/dev/null; then printf "No avconv available!\n" >&2; exit 1; fi
+    if ! type find   &>/dev/null; then printf "No find available?\n" >&2; exit 1; fi
+    # audio format argument
     local fmt="$1"
     if [ -z "$fmt" ]; then printf "${usage}Format argument is required!\n" >&2; exit 1; fi
-    # TODO - validate format argument using 'avconv -formats'    
+    # TODO - validate format argument using 'avconv -formats'
     # source directory argument
     local src="$2"
     if ! [ -n "$src" ]; then printf "${usage}Source directory argument is required!\n" >&2; exit 1; fi
     if ! [ -d "$src" ]; then printf "${usage}Source $src is not a directory!\n" >&2; exit 1; fi
-    src="${src%%/}"    
-    # destination directory argument 
+    src="${src%%/}"
+    # destination directory argument
     local dst="$3"
     if ! [ -n "$dst" ]; then printf "${usage}Target directory argument is required!\n" >&2; exit 1; fi
-    if ! [ -d "$dst" ]; then printf "${usage}Target $dst is not a directory!\n" >&2; exit 1; fi    
+    if ! [ -d "$dst" ]; then printf "${usage}Target $dst is not a directory!\n" >&2; exit 1; fi
     dst="${dst%%/}"
-    # setup trap so loop can be killed cleanly 
-    trap "exit" SIGTERM SIGINT  
+    # setup trap so loop can be killed cleanly
+    trap "exit" SIGTERM SIGINT
     # search for track files
     # TODO - generate this regex from 'avconv -formats'
-    readarray -t tracks < <(find "$src" -type f -iregex ".*\(flac\|mp3\|mp4\|ogg\|wav\)$")   
+    readarray -t tracks < <(find "$src" -type f -iregex ".*\(flac\|mp3\|mp4\|ogg\|wav\)$")
     # record failures
     local err=0
     # for each track
     local num inp seg ext run
     for ((num=0; num < "${#tracks[@]}"; num++)); do
-	# using the name and extension of the file
-	inp="${tracks[$num]}"	
-	ext="${inp##*.}"
-	# generate the output file name with target extension
-	seg="${inp##$src/}"
-	out="$dst/${seg%%\.$ext}.$fmt"
-	# write out progress
-	printf "Track %d / %d - %s " "$(($num+1))" "${#tracks[@]}" "${inp##$src/}" >&2
-	# maybe setup output directory
-	if ! [ -d "${out%/*}" ] && ! mkdir -p "${out%/*}"; then
-	    printf "Could not make directory.\n" >&2;
-	    continue;
-	fi	
-	# skip if the output file already exists
-	if [ -f "$out" ]; then
-	    printf "File exists.\n" >&2
-	    echo "$out"
-	    continue
-	fi
-	# copy if the input is already output format
-	if [ "${ext,,}" == "${fmt,,}" ]; then
-	    printf "Copied.\n" >&2
-	    cp "$inp" "$out"
-	    echo "$out"
-	    continue
-	fi       
-	# transcode the input file into output format
-	run=$(avconv -n -i "$inp" "$out" 2>&1)
-	if [ "$?" -eq 0 ]; then
-	    printf "Transcoded\n" >&2
-	    echo "$out"
-	else
-	    echo "Failed\n$run\n" >&2
-	fi
+        # using the name and extension of the file
+        inp="${tracks[$num]}"
+        ext="${inp##*.}"
+        # generate the output file name with target extension
+        seg="${inp##$src/}"
+        out="$dst/${seg%%\.$ext}.$fmt"
+        # write out progress
+        printf "Track %d / %d - %s " "$(($num+1))" "${#tracks[@]}" "${inp##$src/}" >&2
+        # maybe setup output directory
+        if ! [ -d "${out%/*}" ] && ! mkdir -p "${out%/*}"; then
+            printf "Could not make directory.\n" >&2;
+            continue;
+        fi
+        # skip if the output file already exists
+        if [ -f "$out" ]; then
+            printf "Exists\n"  >&2
+            echo "$out"
+            continue
+        fi
+        # copy if the input is already output format
+        if [ "${ext,,}" == "${fmt,,}" ]; then
+            printf "Copied\n" >&2
+            cp "$inp" "$out"
+            echo "$out"
+            continue
+        fi
+        # transcode the input file into output format
+        run=$(avconv -n -i "$inp" "$out" 2>&1)
+        if [ "$?" -eq 0 ]; then
+            printf "Transcoded\n" >&2
+            echo "$out"
+        else
+            printf "Failed\n%s\n" "$run">&2
+            let err++
+        fi
     done
     # check
     if [ "$err" -gt 0 ]; then
-	printf "Failed to transcode %d files." >&2
-	return 3
+        printf "Failed to transcode %d files." >&2
+        return 3
     fi
     return 0
 }
 
 # run it unless sourced
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then transcode "$@"; fi
-

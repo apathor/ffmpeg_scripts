@@ -8,6 +8,24 @@ Recursively convert all media files in one directory to the given format.
 ## gifcut
 Cut GIFs out of media files or from an input device.
 > gifcut [OPTIONS] INFILE OUTFILE
+OPTIONS:
+ -h          : Show this helpful text.
+ -b START    : Integer seconds offset from the start of the input.
+ -c          : Take input from a camera device instead of video file.
+ -d DEVICE   : Set V4L device from which to capture video.
+ -r FPS      : Integer rate of output GIF in frames per second.
+ -s SCALE    : Integer WxH scale to resize frames in output GIF.
+ -t DURATION : Integer seconds selection of input file.
+
+
+## tele
+Establish a bidirectional pipe of audio to HOST via SSH and libav tools.
+> tele [OPTIONS] HOST
+OPTIONS
+ -r      : Only setup remote-to-local audio stream.
+ -l      : Only setup local-to-remote audio stream.
+ -i FILE : An input file to be streamed to host.
+ -o FILE : An output file to which to write audio stream from host.
 
 # License
 GPLv3 (see LICENSE)
