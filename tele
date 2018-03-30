@@ -42,7 +42,7 @@ EOF
         echo "Input file must exist!" >&2
         return 1
     fi
-    if [ -n "$inp" ] && ! [ -f "$inp" ]; then
+    if [ -n "$out" ] && ! [ -f "$out" ]; then
         # if specified output file must not exist
         echo "Output file already exists!" >&2
         return 1
@@ -78,23 +78,24 @@ EOF
     if [ "$loc" == "0" ]; then
         {
             if [ -n "$inp" ]; then
-                avconv -v quiet -i "$inp" -f wav -
+                DISPLAY=:0 avconv -v quiet -i "$inp" -f wav -
             else
-                avconv -v quiet -f pulse -i default -f wav -
+                DISPLAY=:0 avconv -v quiet -f pulse -i default -f wav -
             fi
         } | {
-            ssh "$host" -- \
-                DISPLAY=:0 avplay -nodisp -v quiet -f wav - 1>/dev/null
+            DISPLAY=:0 ssh "$host" -- \
+                avplay -nodisp -v quiet -f wav - 1>/dev/null
         } &
         printf "Sending audio stream to %s\n" "$host" >&2
     fi
     # remote audio input to local audio output
     if [ "$rem" == "0" ]; then
         {
-            ssh "$host" -- avconv -v quiet -f pulse -i default -f wav -
+            DISPLAY=:0 ssh "$host" -- \
+                avconv -v quiet -f pulse -i default -f wav -
         } | {
             if [ -n "$out" ]; then
-                avconv -v quiet -f wav -i - "$out"
+                DISPLAY=:0 avconv -v quiet -f wav -i - "$out"
             else
                 DISPLAY=:0 avplay -nodisp -v quiet -f wav - 1>/dev/null
             fi
