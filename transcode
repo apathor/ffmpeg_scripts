@@ -7,21 +7,42 @@ function transcode {
     # usage string
     local usage="USAGE: transcode FORMAT SOURCE_DIR TARGET_DIR"
     # requirements
-    if ! type avconv &>/dev/null; then printf "No avconv available!\n" >&2; exit 1; fi
-    if ! type find   &>/dev/null; then printf "No find available?\n" >&2; exit 1; fi
+    if ! type avconv &>/dev/null; then
+        printf "No avconv available!\n" >&2
+        return 1
+    fi
+    if ! type find   &>/dev/null; then
+        printf "No find available?\n" >&2
+        return 1
+    fi
     # audio format argument
     local fmt="$1"
-    if [ -z "$fmt" ]; then printf "%s\nFormat argument is required!\n" "$usage" >&2; exit 1; fi
+    if [ -z "$fmt" ]; then
+        printf "%s\nFormat argument is required!\n" "$usage" >&2
+        return 1
+    fi
     # TODO - validate format argument using 'avconv -formats'
     # source directory argument
     local src="$2"
-    if ! [ -n "$src" ]; then printf "%s\nSource directory argument is required!\n" "$usage" >&2; exit 1; fi
-    if ! [ -d "$src" ]; then printf "%s\nSource $src is not a directory!\n" "$usage" >&2; exit 1; fi
+    if ! [ -n "$src" ]; then
+        printf "%s\nSource directory argument is required!\n" "$usage" >&2
+        return 1
+    fi
+    if ! [ -d "$src" ]; then
+        printf "%s\nSource %s is not a directory!\n" "$usage" "$src" >&2
+        return 1
+    fi
     src="${src%%/}"
     # destination directory argument
     local dst="$3"
-    if ! [ -n "$dst" ]; then printf "%s\nTarget directory argument is required!\n" "$usage" >&2; exit 1; fi
-    if ! [ -d "$dst" ]; then printf "%s\nTarget $dst is not a directory!\n" "$usage"  >&2; exit 1; fi
+    if ! [ -n "$dst" ]; then
+        printf "%s\nTarget directory argument is required!\n" "$usage" >&2
+        return 1
+    fi
+    if ! [ -d "$dst" ]; then
+        printf "%s\nTarget %s is not a directory!\n" "$usage" "$dst" >&2
+        return 1
+    fi
     dst="${dst%%/}"
     # search for track files
     # TODO - generate this regex from 'avconv -formats'
@@ -41,8 +62,8 @@ function transcode {
         printf "Track %d / %d - %s " "$(( num + 1 ))" "${#tracks[@]}" "${inp##$src/}" >&2
         # maybe setup output directory
         if ! [ -d "${out%/*}" ] && ! mkdir -p "${out%/*}"; then
-            printf "Could not make directory.\n" >&2;
-            continue;
+            printf "Could not make directory.\n" >&2
+            continue
         fi
         # skip if the output file already exists
         if [ -f "$out" ]; then

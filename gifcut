@@ -19,7 +19,6 @@ OPTIONS
 
 gifcut © Mike Lalumiere 2017
 EOF
-
     # check requirements
     if ! type avconv &>/dev/null; then
         echo "${BASH_SOURCE[0]} requires avconv!" >&2
@@ -32,7 +31,7 @@ EOF
             b) # begin seconds into input
                 stt="$OPTARG"
                 if ! [[ "$stt" =~ ^[0-9]+$ ]]; then
-                    echo "Start time must be a number!" >&2
+                    printf "Start time must be a number!\n" >&2
                     return 1
                 fi
                 ;;
@@ -42,33 +41,33 @@ EOF
             d) # file camera device
                 dev="$OPTARG"
                 if ! [ -e "$dev" ]; then
-                    echo "Input device must exist!" >&2
+                    printf "Input device must exist!\n" >&2
                     return 1
                 fi
                 ;;
             r) # integer seconds frame rate of output GIF
                 fps="$OPTARG"
                 if ! [[ "$fps" =~ ^[0-9]+$ ]]; then
-                    echo "Frame rate must be a number!" >&2
+                    printf "Frame rate must be a number!\n" >&2
                     return 1
                 fi
                 ;;
             s) # WxH integer scale for output GIF
                 sca="$OPTARG"
                 if ! [[ "$sca" =~ ^[0-9]+x[0-9]+$ ]]; then
-                    echo "Scale must be in WxH format!" >&2
+                    printf "Scale must be in WxH format!\n" >&2
                     return 1
                 fi
                 ;;
             t) # integer seconds of input video
                 dur="$OPTARG"
                 if ! [[ "$dur" =~ ^[0-9]+$ ]]; then
-                    echo "Duration must be a number!" >&2
+                    printf "Duration must be a number!\n" >&2
                     return 1
                 fi
                 ;;
             h) # help!
-                echo "$use"
+                printf "%s\n" "$use"
                 return 1
                 ;;
             \?) # unexpected
@@ -89,23 +88,23 @@ EOF
     fi
     ## input argument is required
     if [ -z "$inp" ]; then
-        echo "$use" >&2
+        printf "%s\n" "$use" >&2
         return 1
     fi
-    ## input file must readable
+    ## input file must be readable
     if ! [ -r "$inp" ] || [ -d "$inp" ]; then
-        echo "Input file must be readable and not a directory: $inp" >&2
+        printf "Input file must be readable: %s\n" "$inp" >&2
         return 2
     fi
     # accept output file argument
     if [ -z "$1" ]; then
-        echo "$use" >&2
+        printf "%s\n" "$use" >&2
         return 1
     fi
     out="${1%.gif}.gif"
     ## output file must not exist already
     if [ -e "$out" ]; then
-        echo "Will not overwrite file: $out" >&2
+        printf "Will not overwrite file: %s\n" "$out" >&2
         return 2
     fi
     # run avconv to capture the gif
@@ -117,7 +116,7 @@ EOF
          -f gif                       \
          -vf format=rgb8,format=rgb24 \
          -pix_fmt rgb24               \
-         "${dur+'-t' \"\$dur\"}"      \
+         -t "${dur:-5}"               \
          "${fps+'-r' \"\$fps\"}"      \
          "${sca+'-s' \"\$sca\"}"      \
          - 2>/dev/null | gifoptimize > "$out"
@@ -130,16 +129,14 @@ EOF
     # success! write the output file
     echo "$out"
 }
-
 # gifoptimize < GIF > OPTIMIZED GIF
 gifoptimize() {
     if [ -t 0 ]; then return 1; fi
-    if type goifsicle &>/dev/null; then
+    if type gifsicle &>/dev/null; then
         exec gifsicle -O3 -d3
     else
         exec cat -
     fi
 }
-
 # run it unless sourced
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then gifcut "$@"; fi
