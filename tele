@@ -19,6 +19,7 @@ EOF
     # accept options
     local out="" inp=""
     local loc=0 rem=0
+    local opt OPTARG OPTIND
     while getopts ":hi:lo:r" opt; do
         case "$opt" in
             i) inp="$OPTARG" ;; # input file
@@ -28,7 +29,7 @@ EOF
             h) # display help
                 echo "$use"
                 return 0
-                ;; 
+                ;;
             \?) # unexpected option?
                 printf "Invalid option '-%s'.\n%s\n" "$OPTARG"  "$use" >&2
                 return 1
@@ -39,37 +40,37 @@ EOF
     # check options
     if [ -n "$inp" ] && ! [ -f "$inp" ]; then
         # if specified input file must exist
-        echo "Input file must exist!" >&2
+        printf "Input file must exist!" >&2
         return 1
     fi
     if [ -n "$out" ] && ! [ -f "$out" ]; then
         # if specified output file must not exist
-        echo "Output file already exists!" >&2
+        printf "Output file already exists!" >&2
         return 1
     fi
     if [ "$rem" == "1" ] && [ "$loc" == "1" ]; then
         # local and remote options are incompatible given together
-        echo "Remote and local playback disabled? Nothing to do." >&2
+        printf "Remote and local playback disabled? Nothing to do." >&2
         return 1
     fi
     # accept target host argument
     local host="$1"
     if [ -z "$host" ]; then
-        echo "Host argument required." >&2
+        printf "Host argument required." >&2
         return 1
     fi
     # test connection to the target host
     if ! ssh "$host" ":"; then
-        echo "Could not connect to host '$host'." >&2
+        printf "Could not connect to host '%s'.\n" "$host" >&2
         return 2
     fi
     # require libav tools here and on the target host
     if ! type avconv avplay &>/dev/null; then
-        echo "Missing tools on local host - avconv and avplay required!" >&2
+        printf "Missing tools on local host - avconv and avplay required!\n" >&2
         return 3
     fi
-    if ! ssh "$host" 'bash -c "type avconv avplay"' &>/dev/null; then
-        echo "Missing tools on remote host - avconv and avplay required!" >&2
+    if ! ssh "$host" -- 'bash -c "type avconv avplay"' &>/dev/null; then
+        printf "Missing tools on remote host - avconv and avplay required!\n" >&2
         return 3
     fi
     # when signaled kill the whole process group
@@ -84,7 +85,8 @@ EOF
             fi
         } | {
             DISPLAY=:0 ssh "$host" -- \
-                avplay -nodisp -v quiet -f wav - 1>/dev/null
+                   avplay -nodisp -v quiet -f wav - \
+                   1>/dev/null
         } &
         printf "Sending audio stream to %s\n" "$host" >&2
     fi

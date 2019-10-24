@@ -1,7 +1,16 @@
 #!/bin/bash
 # transcode FORMAT SOURCE_DIR TARGET_DIR
 # Transcode source directory of audio files to a new format into target directory.
-# transcode © Mike Lalumiere 2017
+# © Mike Lalumiere 2017
+
+avformat() {
+    local f="$1"
+    if ! [ -f  "$f" ]; then return 1; fi
+    local n
+    n=$(avprobe -show_format "$f" 2>&- | awk -F= '/format_name/{ print $2 }')
+    if [ -z "$n" ]; then return 2; fi
+    printf "%s\n" "$n"
+}
 
 function transcode {
     # usage string
@@ -21,32 +30,35 @@ function transcode {
         printf "%s\nFormat argument is required!\n" "$usage" >&2
         return 1
     fi
-    # TODO - validate format argument using 'avconv -formats'
-    # source directory argument
-    local src="$2"
+    # require a source directory argument
+    local src="${2%%/}"
     if ! [ -n "$src" ]; then
         printf "%s\nSource directory argument is required!\n" "$usage" >&2
         return 1
     fi
     if ! [ -d "$src" ]; then
-        printf "%s\nSource %s is not a directory!\n" "$usage" "$src" >&2
+        printf "%s\nSource directory does not exist.\n" "$usage" "$src" >&2
         return 1
     fi
-    src="${src%%/}"
-    # destination directory argument
-    local dst="$3"
+    # require a destination directory argument
+    local dst="${3%%/}"
     if ! [ -n "$dst" ]; then
         printf "%s\nTarget directory argument is required!\n" "$usage" >&2
         return 1
     fi
-    if ! [ -d "$dst" ]; then
-        printf "%s\nTarget %s is not a directory!\n" "$usage" "$dst" >&2
-        return 1
-    fi
-    dst="${dst%%/}"
     # search for track files
-    # TODO - generate this regex from 'avconv -formats'
-    readarray -t tracks < <(find "$src" -type f -iregex ".*\(flac\|mp3\|mp4\|ogg\|wav\)$")
+    local it
+    declare -a files
+    declare -a tracks
+    while IFS= read -rd '' file; do
+        files+=("$file")
+        it=$(avformat "$file")
+        if [ -n "$it" ]; then
+            tracks+=("$file")
+        else
+            printf "NOT %q\n" "$file"
+        fi
+    done < <(find "$src" -type f -print0)
     # record failures
     local err=0
     # for each track
@@ -59,7 +71,7 @@ function transcode {
         seg="${inp##$src/}"
         out="$dst/${seg%%\.$ext}.$fmt"
         # write out progress
-        printf "Track %d / %d - %s " "$(( num + 1 ))" "${#tracks[@]}" "${inp##$src/}" >&2
+        printf "Track %d / %d - %s " "$((num+1))" "${#tracks[@]}" "${inp##$src/}" >&2
         # maybe setup output directory
         if ! [ -d "${out%/*}" ] && ! mkdir -p "${out%/*}"; then
             printf "Could not make directory.\n" >&2
@@ -67,34 +79,32 @@ function transcode {
         fi
         # skip if the output file already exists
         if [ -f "$out" ]; then
-            printf "Exists\n"  >&2
-            echo "$out"
+            printf "EXISTS\n"  >&2
+            printf "%s\n" "$out"
             continue
         fi
         # copy if the input is already output format
         if [ "${ext,,}" == "${fmt,,}" ]; then
-            printf "Copied\n" >&2
+            printf "COPIED\n" >&2
             cp "$inp" "$out"
-            echo "$out"
+            printf "%s\n" "$out"
             continue
         fi
         # transcode the input file into output format
-        run=$(avconv -n -i "$inp" "$out" 2>&1)
-        if [ "$?" -eq 0 ]; then
-            printf "Transcoded\n" >&2
-            echo "$out"
+        if avconv -n -i "$inp" "$out" &>/dev/null; then
+            printf "CONVERTED\n" >&2
+            printf "%s\n" "$out"
         else
-            printf "Failed\n%s\n" "$run">&2
+            printf "FAILED\n" 
             let err++
         fi
     done
     # check
     if [ "$err" -gt 0 ]; then
-        printf "Failed to transcode %d files." >&2
+        printf "Failed to transcode %d files." "$err" >&2
         return 3
     fi
     return 0
 }
-
 # run it unless sourced
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then transcode "$@"; fi
