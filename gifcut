@@ -1,12 +1,12 @@
 #!/bin/bash
 # gifcut © Mike Lalumiere 2017
 # This file is licensed under the GPLv3. Please see LICENSE.
-# Requires avconv. Assumes Video4Linux for webcam input.
+# Requires ffmpeg. Assumes Video4Linux for webcam input.
 gifcut() {
     # define usage text
     read -r -d '' use <<EOF
 Usage: gifcut [OPTIONS] INFILE OUTFILE
-Extract a GIF from a video source using avconv.
+Extract a GIF from a video source using ffmpeg.
 
 OPTIONS
  -h          : Show this helpful text.
@@ -21,8 +21,8 @@ gifcut © Mike Lalumiere 2017
 EOF
 
     # check requirements
-    if ! type avconv &>/dev/null; then
-        echo "${BASH_SOURCE[0]} requires avconv!" >&2
+    if ! type ffmpeg &>/dev/null; then
+        echo "${BASH_SOURCE[0]} requires ffmpeg!" >&2
         return 255
     fi
     # accept some options
@@ -108,8 +108,8 @@ EOF
         echo "Will not overwrite file: $out" >&2
         return 2
     fi
-    # run avconv to capture the gif
-    eval avconv                       \
+    # run ffmpeg to capture the gif
+    eval ffmpeg                       \
          "${cam+'-f' 'video4linux2'}" \
          "${stt+'-ss' \"\$stt\"}"     \
          -i "\"$inp\""                \

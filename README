@@ -1,5 +1,5 @@
-# avconv_scripts
-Yo! This repository contains some bash scripts that use avconv.
+# ffmpeg_scripts
+Yo! This repository contains some bash scripts that use ffmpeg.
 
 ## transcode
 Recursively convert all media files in one directory to the given format.
@@ -31,6 +31,6 @@ OPTIONS
 GPLv3 (see LICENSE)
 
 # Links
-avconv -  https://libav.org
+ffmpeg -  https://ffmpeg.org
 GNU - https://www.gnu.org/software/
 Greg's Wiki - http://mywiki.wooledge.org/

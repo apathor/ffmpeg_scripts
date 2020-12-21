@@ -1,7 +1,7 @@
 #!/bin/bash
 # tele © GPLv3 by Mike Lalumiere 2018
 # This file is licensed under the GPLv3. Please see LICENSE.
-# Requires avconv, avplay, and ssh. Assumes PulseAudio for mic input.
+# Requires ffmpeg, avplay, and ssh. Assumes PulseAudio for mic input.
 tele() {
     # usage string
     read -r -d '' use <<EOF
@@ -65,12 +65,12 @@ EOF
         return 2
     fi
     # require libav tools here and on the target host
-    if ! type avconv avplay &>/dev/null; then
-        printf "Missing tools on local host - avconv and avplay required!\n" >&2
+    if ! type ffmpeg avplay &>/dev/null; then
+        printf "Missing tools on local host - ffmpeg and avplay required!\n" >&2
         return 3
     fi
-    if ! ssh "$host" -- 'bash -c "type avconv avplay"' &>/dev/null; then
-        printf "Missing tools on remote host - avconv and avplay required!\n" >&2
+    if ! ssh "$host" -- 'bash -c "type ffmpeg avplay"' &>/dev/null; then
+        printf "Missing tools on remote host - ffmpeg and avplay required!\n" >&2
         return 3
     fi
     # when signaled kill the whole process group
@@ -79,9 +79,9 @@ EOF
     if [ "$loc" == "0" ]; then
         {
             if [ -n "$inp" ]; then
-                DISPLAY=:0 avconv -v quiet -i "$inp" -f wav -
+                DISPLAY=:0 ffmpeg -v quiet -i "$inp" -f wav -
             else
-                DISPLAY=:0 avconv -v quiet -f pulse -i default -f wav -
+                DISPLAY=:0 ffmpeg -v quiet -f pulse -i default -f wav -
             fi
         } | {
             DISPLAY=:0 ssh "$host" -- \
@@ -94,10 +94,10 @@ EOF
     if [ "$rem" == "0" ]; then
         {
             DISPLAY=:0 ssh "$host" -- \
-                avconv -v quiet -f pulse -i default -f wav -
+                ffmpeg -v quiet -f pulse -i default -f wav -
         } | {
             if [ -n "$out" ]; then
-                DISPLAY=:0 avconv -v quiet -f wav -i - "$out"
+                DISPLAY=:0 ffmpeg -v quiet -f wav -i - "$out"
             else
                 DISPLAY=:0 avplay -nodisp -v quiet -f wav - 1>/dev/null
             fi

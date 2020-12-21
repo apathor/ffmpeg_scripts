@@ -16,8 +16,8 @@ function transcode {
     # usage string
     local usage="USAGE: transcode FORMAT SOURCE_DIR TARGET_DIR"
     # requirements
-    if ! type avconv &>/dev/null; then
-        printf "No avconv available!\n" >&2
+    if ! type ffmpeg &>/dev/null; then
+        printf "No ffmpeg available!\n" >&2
         return 1
     fi
     if ! type find   &>/dev/null; then
@@ -91,7 +91,7 @@ function transcode {
             continue
         fi
         # transcode the input file into output format
-        if avconv -n -i "$inp" "$out" &>/dev/null; then
+        if ffmpeg -n -i "$inp" "$out" &>/dev/null; then
             printf "CONVERTED\n" >&2
             printf "%s\n" "$out"
         else
