@@ -112,10 +112,10 @@ EOF
     eval ffmpeg                       \
          "${cam+'-f' 'video4linux2'}" \
          "${stt+'-ss' \"\$stt\"}"     \
+         -vsync cfr \
          -i "\"$inp\""                \
          -f gif                       \
-         -vf format=rgb8,format=rgb24 \
-         -pix_fmt rgb24               \
+         -pix_fmt rgb8               \
          "${dur+'-t' \"\$dur\"}"      \
          "${fps+'-r' \"\$fps\"}"      \
          "${sca+'-s' \"\$sca\"}"      \
